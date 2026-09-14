@@ -35,8 +35,11 @@ jobs:
           with open("outputs/summary.json") as f:
               summary = json.load(f)
 
+          with open("outputs/model_results.json") as f:
+              model_results = json.load(f)
+
           best = summary.get("best_model", "")
-          p50  = summary.get("precision_at_50", 0)
+          p50  = model_results["models"][best]["precision_at_50"]
 
           print(f"Best model : {best}")
           print(f"Precision@50: {p50}")
