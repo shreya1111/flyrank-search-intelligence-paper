@@ -1,0 +1,60 @@
+name: Pipeline CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  run-pipeline:
+    name: Reproduce results
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full pipeline
+        run: python scripts/run_all.py
+
+      - name: Verify key metrics
+        run: |
+          python - <<'EOF'
+          import json, sys
+
+          with open("outputs/summary.json") as f:
+              summary = json.load(f)
+
+          best = summary.get("best_model", "")
+          p50  = summary.get("precision_at_50", 0)
+
+          print(f"Best model : {best}")
+          print(f"Precision@50: {p50}")
+
+          assert best == "random_forest", f"Expected random_forest, got {best}"
+          assert p50 >= 0.70, f"Precision@50 dropped below 0.70: {p50}"
+
+          print("All checks passed.")
+          EOF
+
+      - name: Upload outputs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-outputs
+          path: |
+            outputs/model_report.md
+            outputs/model_results.json
+            outputs/summary.json
+            outputs/charts/
+          retention-days: 14

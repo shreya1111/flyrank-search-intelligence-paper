@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="FlyRank ML Internship capstone research paper by Shreya Srivastava.">
+<meta property="og:title" content="Search Intelligence Capstone — Shreya Srivastava">
+<meta property="og:description" content="A reproducible research paper connecting search data, machine learning validation, and ranked content recommendations.">
+<title>Search Intelligence Capstone | Shreya Srivastava</title>
+<style>
+:root{--bg:#f6f8f7;--paper:#fff;--ink:#16201d;--muted:#60706b;--line:#dbe3df;--accent:#087f63}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.7}
+main{max-width:920px;margin:48px auto;padding:48px;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 40px #0000000a}
+.eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.8rem}
+h1{font-size:2.6rem;line-height:1.1;margin:.35rem 0 1rem}h2{margin-top:2.5rem;border-bottom:1px solid var(--line);padding-bottom:.4rem}h3{margin-top:1.7rem}
+.subtitle{color:var(--muted);font-size:1.05rem}.note{padding:16px 18px;border-left:4px solid var(--accent);background:#eef7f3;border-radius:8px}
+code{background:#f0f3f2;padding:2px 5px;border-radius:4px}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid var(--line);padding:10px;text-align:left}th{background:#f4f7f6}
+li{margin:.3rem 0}.footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+@media(max-width:700px){main{margin:0;padding:26px 20px;border-radius:0;border-left:0;border-right:0}h1{font-size:2rem}}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">FlyRank ML Internship · ML-11</div>
+<h1>Search Intelligence Capstone: From Search Data to Ranked Content Recommendations</h1>
+<p class="subtitle"><strong>Author:</strong> Shreya Srivastava</p>
+<div class="note"><strong>Evidence note:</strong> Every figure below comes from a fresh, reproduced run of <code>scripts/run_all.py</code> against the bundled anonymized dataset — no value is invented or estimated.</div>
+
+<h2>Abstract</h2>
+<p>Search behavior contains measurable signals about information demand and where content may be failing to satisfy it. This study builds a repeatable search-intelligence workflow on the FlyRank ML Internship content-performance dataset: data contract → features → baseline → model → leakage checks → validation → ranked recommendations.</p>
+<p><strong>Research question:</strong> Can 90-day search/engagement and content-context features separate declining-visibility content from stable content well enough to rank pages for editorial refresh — and beat a transparent hand-written rule?</p>
+<p><strong>Dataset:</strong> 30,000 content items · 32 pseudonymized clients · <strong>Period:</strong> trailing 90-day window ending at export · <strong>Final approach:</strong> random forest classifier, 52 features</p>
+<p><strong>Main result:</strong> The random forest reaches <strong>ROC AUC 0.750</strong> and <strong>Precision@50 = 0.740</strong>, versus the rule-based baseline's <strong>ROC AUC 0.627</strong> and <strong>Precision@50 = 0.240</strong> — roughly a 3x improvement in top-of-queue precision, evaluated on a client-holdout split so no client's pages appear in both train and test.</p>
+
+<h2>1. Introduction</h2>
+<p>The objective is not merely to fit a model. The objective is to establish a defensible evidence chain from observable search behavior to an actionable content decision: what signal is present, whether it survives validation, and what a content team should do differently because of it.</p>
+
+<h2>2. Data</h2>
+<p>The study uses the anonymized starter export bundled with the FlyRank ML Internship repository — a small slice of the ~79M-row full release, not the full release itself.</p>
+<ul>
+<li><strong>Release:</strong> <code>data/raw/content_refresh_anonymized.csv</code> — anonymized starter slice</li>
+<li><strong>Observation window:</strong> trailing 90 days, ending at export time</li>
+<li><strong>Records:</strong> 30,000 rows, 32 pseudonymized clients (no rows dropped by filtering)</li>
+<li><strong>Unit of analysis:</strong> one row = one pseudonymized content item (page)</li>
+<li><strong>Target:</strong> <code>is_declining_label</code> = (<code>trend_direction == "down"</code>), positive rate 54.2%</li>
+<li><strong>Exclusions:</strong> zero-impression or &lt;90-day-old items; <code>provider_used</code>/<code>model_used</code>; all client-identifying fields (already stripped upstream)</li>
+</ul>
+
+<h2>3. Methodology</h2>
+<p>The analysis follows a fixed sequence: research question → data contract → features → baseline → model/scoring → validation → interpretation → recommendations.</p>
+<p><strong>Features:</strong> 52 total (18 numeric — impressions/clicks/sessions logs, avg position, CTR, engagement/scroll rate, age, word/char count — + 8 one-hot categorical fields).</p>
+<p><strong>Baseline:</strong> transparent weighted rule — 40% visibility + 30% freshness risk + 25% position opportunity + 5% depth gap, with human-readable reason codes.</p>
+<p><strong>Final approach:</strong> random forest (vs. logistic regression and decision tree), selected by Precision@50 on a client-holdout split (20% of clients held out; 2,325 test rows / 27,675 train rows).</p>
+<p><strong>Leakage checks:</strong> the trend-derived columns that define the label (<code>trend_direction</code>, <code>trend_pct</code>, and the last-30d/prev-30d windows) are excluded from the feature set; splits are by client, not row, so no client appears in both train and test.</p>
+
+<h2>4. Results</h2>
+<table><tr><th>Metric</th><th>Baseline</th><th>Random Forest</th><th>Difference</th></tr>
+<tr><td>ROC AUC</td><td>0.627</td><td>0.750</td><td>+0.123</td></tr>
+<tr><td>Precision@50</td><td>0.240</td><td>0.740</td><td>+0.500 (~3x)</td></tr>
+<tr><td>Average precision</td><td>0.468</td><td>0.618</td><td>+0.150</td></tr>
+<tr><td>F1</td><td>0.274</td><td>0.640</td><td>+0.366</td></tr>
+</table>
+<p><strong>Main finding:</strong> On a client-holdout split, the random forest ranks declining content ahead of stable content substantially better than the rule-based baseline — a ~3x improvement in Precision@50, the metric that matters for a ranked editorial review queue. Top features: <code>days_with_impressions</code>, <code>log_impressions_90d</code>, <code>avg_position</code>, <code>content_age_days</code>, <code>char_count</code>.</p>
+
+<h2>5. Limitations & Honest Framing</h2>
+<p>Search observations are observational signals. They do not, by themselves, prove why a page is declining or that refreshing it would cause recovery. Findings apply only to this 30,000-row, 32-client anonymized slice and a single 90-day snapshot — not the full ~79M-row release, other clients, or other periods.</p>
+<p><strong>Study-specific limitations:</strong> no forward-looking outcome window exists to test whether acting on the queue actually improves visibility; keyword-context missingness is systematically tied to content type and absorbed via an "unknown" tier rather than imputed.</p>
+
+<h2>6. Ranked Recommendations</h2>
+<table><tr><th>Rank</th><th>Recommendation</th><th>Evidence</th><th>Confidence</th></tr>
+<tr><td>1</td><td>Review the 3,602 high-confidence queue items first, prioritizing <code>refresh_and_review_ctr</code></td><td>Model probability 0.77–0.85 in Top-10; Precision@50 = 0.740</td><td>High</td></tr>
+<tr><td>2</td><td>Staff <code>refresh_and_review_ctr</code> (6,657 items) as the largest action bucket</td><td>Plurality action among top-ranked items</td><td>High</td></tr>
+<tr><td>3</td><td>Run <code>expand_and_refresh</code> (82 items) as a separate thin-content sprint</td><td>Narrow, specific trigger condition (low word count + real impressions)</td><td>Medium</td></tr>
+</table>
+
+<h2>7. Reproducibility</h2>
+<p>The primary reproducibility artifact is <code>scripts/run_all.py</code>, which runs the full five-stage pipeline against the bundled CSV — no external data access required. A fresh run during preparation of this paper reproduced every table and figure above exactly.</p>
+
+<h2>8. Conclusion</h2>
+<p>A random forest trained on 52 search-behavior and content-context features identifies declining-visibility content roughly 3x more precisely at the top of the queue than a transparent hand-written rule, under a client-holdout split designed to resist the most obvious leakage path. The value is the full evidence chain — explicit label definition, excluded leakage columns, a matched baseline, and an auditable reason-coded queue — not the model score alone. The study does not show that acting on the queue improves outcomes, since no post-action data exists yet to test that.</p>
+
+<h2>9. Acknowledgments & Data Credit</h2>
+<p>This research was completed as part of the FlyRank ML Internship. Dataset credit: FlyRank ML Internship search dataset (anonymized starter export). Source: <a href="https://flyrank.ai">flyrank.ai</a>. This page contains only aggregate, public-safe findings — no client names, URLs, domains, or raw queries.</p>
+
+<div class="footer">© 2026 Shreya Srivastava · FlyRank ML Internship Capstone</div>
+</main>
+</body>
+</html>
