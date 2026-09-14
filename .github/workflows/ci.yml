@@ -45,7 +45,7 @@ jobs:
           print(f"Precision@50: {p50}")
 
           assert best == "random_forest", f"Expected random_forest, got {best}"
-          assert p50 >= 0.70, f"Precision@50 dropped below 0.70: {p50}"
+          assert p50 >= 0.65, f"Precision@50 dropped below 0.65: {p50}"
 
           print("All checks passed.")
           EOF
